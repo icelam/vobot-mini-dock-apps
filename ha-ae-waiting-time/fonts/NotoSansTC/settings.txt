@@ -1,0 +1,18 @@
+Converter: https://lvgl.io/tools/fontconverter
+
+------ SETTING USED ------
+
+Font file:
+NotoSansTC-Regular.ttf
+
+Size:
+20
+
+BPP:
+2
+
+Range:
+0x0020-0x007F,0x0080-0x00BF,0x3000-0x301F,0xFF00-0xFF64
+
+Symbols:
+急症室等候時間雅麗氏何妙齡那打素醫院明愛醫院廣華醫院北區醫院北大嶼山醫院東區尤德夫人那打素醫院博愛醫院威爾斯親王醫院瑪嘉烈醫院伊利沙伯醫院瑪麗醫院律敦治醫院長洲醫院天水圍醫院將軍澳醫院屯門醫院基督教聯合醫院仁濟醫院超過大約小時
