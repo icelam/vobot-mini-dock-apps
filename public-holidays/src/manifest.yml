@@ -1,0 +1,9 @@
+application:
+  name: HK Public Holidays
+  version: 1.0.0
+  description: This is an app that displays Hong Kong public holidays.
+
+system_requirements:
+  minimum_version: 1.1.0
+  compatible_devices:
+    - MiniDock
