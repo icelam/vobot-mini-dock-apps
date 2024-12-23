@@ -306,9 +306,6 @@ async def on_running_foreground():
     except Exception as e:
         display_error_screen(f"Error occured on running foreground: {e}")
 
-    global last_api_call_time
-    current_time = clocktime.now()
-
 async def on_stop():
     """
     Code executed on stop. Make sure, everything is cleaned up nicely.
