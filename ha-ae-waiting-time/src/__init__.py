@@ -1,6 +1,6 @@
 import lvgl as lv
 import clocktime
-import json
+import ujson
 import net
 import urequests
 
@@ -96,11 +96,11 @@ def request(url: str):
     """
     if net.connected():
         dprint(f"Fetching {url}")
-        response = urequests.get(url)
+        response = urequests.get(url, headers={"Content-Type": "application/json"})
 
         if response.status_code == 200:
             dprint(f"Got response with status code {response.status_code}")
-            return json.loads(response.text)
+            return ujson.loads(response.text)
         else:
             raise Exception(f"Failed to load {url}, status code: {response.status_code}, response body: {response.text}")
     else:
