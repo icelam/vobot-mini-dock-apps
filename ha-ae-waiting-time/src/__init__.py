@@ -102,7 +102,7 @@ def request(url: str):
             dprint(f"Got response with status code {response.status_code}")
             return json.loads(response.text)
         else:
-            raise Exception(f"Failed to load {url}, status code: {response.status_code}")
+            raise Exception(f"Failed to load {url}, status code: {response.status_code}, response body: {response.text}")
     else:
         raise Exception(f"Wifi is not connected")
 
