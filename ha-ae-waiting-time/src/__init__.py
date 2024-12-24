@@ -223,7 +223,6 @@ def fetch_and_display_wait_time() -> None:
         header.update_layout()
 
         container_height = SCREEN_HEIGHT - header.get_height();
-        print(container_height)
 
         # Add list container
         list_container = lv.list(main_scr)
