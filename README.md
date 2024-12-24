@@ -5,3 +5,8 @@ This repository contains a collection of apps designed for the [Vobot Mini Dock]
 ## Getting started
 
 To develop your own Vobot Mini Dock apps, visit the [Vobot Mini Dock Developer Quick Start Guide](https://dock.myvobot.com/developer/getting_started/).
+
+## Special Thanks
+
+This Christmas gift from you, [@chihangc](https://github.com/chihangc), is amazing! I'm loving coding on the Vobot Mini Dock!
+ 
