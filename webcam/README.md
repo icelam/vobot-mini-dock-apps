@@ -1,6 +1,6 @@
 # Webcam app for Vobot Mini Dock
 
-First, huge shout-out to @ToBeHH for this great and [simple webcam app](https://github.com/ToBeHH/minidock_webcam/) we could fork and use on Vobot Mini Dock!
+First, huge shout-out to [@ToBeHH](https://github.com/ToBeHH) for this great and [simple webcam app](https://github.com/ToBeHH/minidock_webcam/) we could fork and use on Vobot Mini Dock!
 
 ---
 
