@@ -149,7 +149,7 @@ def load_webcam() -> None:
     scr.add_event(event_handler, lv.EVENT.ALL, None)
 
     with task_running_lock:
-        time.sleep_ms(800)  # Allow other tasks to run
+        time.sleep_ms(1200)  # Allow other tasks to run
         try:
             while task_running:
                 url = app_mgr_config.get(f"url{webcam_index + 1}", "Unknown")
@@ -169,7 +169,7 @@ def load_webcam() -> None:
                         time.sleep_ms(500)
 
                 if task_running:
-                    time.sleep_ms(100)  # Allow other tasks to run
+                    time.sleep_ms(200)  # Allow other tasks to run
         except Exception as err:
             print(f"Webcam thread had an exception: {err}")
             raise
@@ -218,9 +218,9 @@ def event_handler(event) -> None:
     if e_code == lv.EVENT.KEY:
         e_key = event.get_key()
         dprint(f"Got key {e_key}")
-        if e_key == lv.KEY.RIGHT:
+        if e_key == lv.KEY.LEFT:
             change_webcam(1)
-        elif e_key == lv.KEY.LEFT:
+        elif e_key == lv.KEY.RIGHT:
             change_webcam(-1)
         # Escape key == EXIT app is handled by the underlying OS
     elif e_code == lv.EVENT.FOCUSED:
@@ -250,7 +250,7 @@ async def on_resume() -> None:
     if task_running_lock.locked():
         dprint("Waiting for lock to be released / previous thread to fininsh")
         while task_running_lock.locked():
-            time.sleep_ms(100)
+            time.sleep_ms(200)
 
     dprint("Starting new thread")
     task_running = True
@@ -278,7 +278,7 @@ async def on_stop() -> None:
     global scr, label, task_running, task_running_lock
     task_running = False
     scr.set_style_bg_img_src(None, lv.PART.MAIN)
-    label.set_text("Ending...")
+    label.set_text("Stopping...")
 
     if task_running_lock.locked():
         dprint("Waiting for lock to be released / previous thread to fininsh")
