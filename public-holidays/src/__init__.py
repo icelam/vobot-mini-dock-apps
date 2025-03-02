@@ -19,12 +19,21 @@ ICON: str = "A:apps/public-holidays/resources/icon.png"
 # ---------- Constants ----------
 SCREEN_WIDTH: int = 320
 SCREEN_HEIGHT: int = 240
+MESSAGE_TYPE: dict[str, int] = {
+    "INFO": 1,
+    "WARN": 2,
+    "ERROR": 3,
+}
 
 # ---------- LVGL Widget ----------
 font_chinese = lv.binfont_create("A:apps/public-holidays/fonts/NotoSansTC_20_bpp2.bin")
 
-# List container
+# Main screen
+main_scr = None
 list_container = None
+
+# Message screen
+message_scr = None
 
 # ---------- State ----------
 last_api_call_date = 0
@@ -127,58 +136,48 @@ def request(url: str):
             dprint(f"Got response with status code {response.status_code}")
             # API response from 1823.gov.hk returns BOM character at the beginning of file
             # which we have to remove it to parse the JSON properly
-            return ujson.loads(response.text[1:] if response.text.startswith('\ufeff') else response.text)
+            return ujson.loads(response.text[1:] if response.text.startswith("\ufeff") else response.text)
         else:
             raise Exception(f"Failed to load {url}, status code: {response.status_code}, response body: {response.text}")
     else:
         raise Exception(f"Wifi is not connected")
 
-def display_fullscreen_message(message: str, is_error: bool = False) -> None:
+def make_display_fullscreen_message(level: str = MESSAGE_TYPE["INFO"]) -> function[str]:
     """
-    Display fullscreen screen
+    Creates function that display fullscreen message
 
     Args:
-        message (str): Message to display on screen
-        is_errror (bool): Indicates if the message is an error message that should be displayed in red
+        level (MessageType): Indicates if the message is an error message that should be displayed in red
 
     Returns:
         None. The message is displayed on the screen.
     """
-    error_scr = lv.obj()
-    error_scr.set_style_bg_color(lv.color_hex(0x000000),0)
+    def display_fullscreen_message(message: str) -> None:
+        global message_scr
+        dprint(f"Displaying message: {message}")
 
-    message_label = lv.label(error_scr)
-    message_label.center()
-    message_label.set_long_mode(lv.label.LONG.WRAP)
-    message_label.set_width(300)
-    message_label.set_style_text_color(lv.color_hex(0xFF0000) if is_error else lv.color_hex(0xFFFFFF), 0)
+        if not message_scr:
+            message_scr = lv.obj()
+            message_scr.set_style_bg_color(lv.color_hex(0x000000),0)
+        else:
+            message_scr.clean()
 
-    message_label.set_text(message)
-    lv.screen_load(error_scr)
+        message_label = lv.label(message_scr)
+        message_label.center()
+        message_label.set_long_mode(lv.label.LONG.WRAP)
+        message_label.set_width(300)
+        message_label.set_style_text_color(lv.color_hex(0xFF0000) if level is MESSAGE_TYPE["ERROR"] else lv.color_hex(0xFFFFFF), 0)
+        message_label.set_text(message)
 
-def display_error_screen(message: str) -> None:
-    """
-    Display error screen
+        if message_scr and not message_scr.is_visible():
+            lv.scr_load(message_scr)
 
-    Args:
-        message (str): Error message to display on screen
+        lv.refr_now(None)
 
-    Returns:
-        None. The error screen is displayed on the screen.
-    """
-    display_fullscreen_message(message, True)
+    return display_fullscreen_message
 
-def display_loading_screen(message: str) -> None:
-    """
-    Display loading screen
-
-    Args:
-        message (str): loading message to display on screen
-
-    Returns:
-        None. The error screen is displayed on the screen.
-    """
-    display_fullscreen_message(message, False)
+display_error_screen = make_display_fullscreen_message(MESSAGE_TYPE["ERROR"])
+display_info_screen = make_display_fullscreen_message(MESSAGE_TYPE["INFO"])
 
 def event_handler(event) -> None:
     """
@@ -240,7 +239,7 @@ def get_current_date() -> int:
     month = current_time[1]
     day = current_time[2]
 
-    formatted_date = '{:04d}{:02d}{:02d}'.format(year, month, day)
+    formatted_date = "{:04d}{:02d}{:02d}".format(year, month, day)
     return int(formatted_date)
 
 def days_between(date1: int, date2: int):
@@ -256,50 +255,55 @@ def fetch_and_display_public_holiday(current_date: int) -> None:
     Returns:
         None. The main screen is displayed on the screen with updated public holidays.
     """
-    global list_container, holiday_count
+    global main_scr, list_container, holiday_count
     dprint("Update screen")
 
-    main_scr = lv.obj()
+    if not main_scr:
+        main_scr = lv.obj()
 
-    # Add header
-    header = lv.label(main_scr)
-    header.set_text("香港公眾假期")
-    header.align(lv.ALIGN.TOP_LEFT, 0, 0)
-    header.set_style_text_align(lv.TEXT_ALIGN.CENTER, 0)
-    header.add_style(header_style, 0)
-    header.update_layout()
+        # Add header
+        header = lv.label(main_scr)
+        header.set_text("香港公眾假期")
+        header.align(lv.ALIGN.TOP_LEFT, 0, 0)
+        header.set_style_text_align(lv.TEXT_ALIGN.CENTER, 0)
+        header.add_style(header_style, 0)
+        header.update_layout()
 
-    container_height = SCREEN_HEIGHT - header.get_height();
+        container_height = SCREEN_HEIGHT - header.get_height()
 
-    # Add list container
-    list_container = lv.list(main_scr)
-    list_container.set_size(SCREEN_WIDTH, container_height)
-    list_container.align(lv.ALIGN.TOP_LEFT, 0, header.get_height())
-    list_container.set_scrollbar_mode(lv.SCROLLBAR_MODE.AUTO)
-    list_container.add_style(list_style, 0)
+        # Add list container
+        list_container = lv.list(main_scr)
+        list_container.set_size(SCREEN_WIDTH, container_height)
+        list_container.align(lv.ALIGN.TOP_LEFT, 0, header.get_height())
+        list_container.set_scrollbar_mode(lv.SCROLLBAR_MODE.AUTO)
+        list_container.add_style(list_style, 0)
+        list_container.update_layout()
 
-    # Bind input events
-    main_scr.add_event(event_handler, lv.EVENT.ALL, None)
-    lv.group_get_default().add_obj(main_scr)
-    lv.group_focus_obj(main_scr)
-    lv.group_get_default().set_editing(True)
+        # Bind input events
+        main_scr.add_event(event_handler, lv.EVENT.ALL, None)
+        lv.group_get_default().add_obj(main_scr)
+        lv.group_focus_obj(main_scr)
+        lv.group_get_default().set_editing(True)
 
     response = request(API_URL)
-    future_events = [event for event in response['vcalendar'][0]['vevent'] if int(event['dtstart'][0]) >= current_date]
+
+    list_container.clean()
+
+    future_events = [event for event in response["vcalendar"][0]["vevent"] if int(event["dtstart"][0]) >= current_date]
 
     for event in future_events:
         item = lv.obj(list_container)
         item.add_style(item_style, 0)
         item.add_style(focused_item_style, lv.STATE.FOCUSED)
-        item.set_size(SCREEN_WIDTH, container_height // 3)
+        item.set_size(SCREEN_WIDTH, list_container.get_height() // 3)
 
         left_content = lv.obj(item)
         left_content.add_style(container_style, 0)
         left_content.align(lv.ALIGN.LEFT_MID, 0, 0)
-        left_content.set_size(140, (container_height // 3) - 12);
+        left_content.set_size(140, (list_container.get_height() // 3) - 12);
 
         name_label = lv.label(left_content)
-        name_label.set_text(event['summary'])
+        name_label.set_text(event["summary"])
         name_label.set_long_mode(lv.label.LONG.SCROLL_CIRCULAR)
         name_label.set_style_pad_ver(5, 0)
         name_label.set_width(140)
@@ -307,7 +311,7 @@ def fetch_and_display_public_holiday(current_date: int) -> None:
 
         date_label = lv.label(left_content)
         date_label.add_style(remarks_style, 0)
-        date_str = event['dtstart'][0]
+        date_str = event["dtstart"][0]
         date_label.set_text(f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}")
         date_label.set_long_mode(lv.label.LONG.SCROLL_CIRCULAR)
         date_label.set_width(140)
@@ -315,7 +319,7 @@ def fetch_and_display_public_holiday(current_date: int) -> None:
 
         countdown_chip = lv.label(item)
         countdown_chip.add_style(chip_style, 0)
-        holiday_date = int(event['dtstart'][0])
+        holiday_date = int(event["dtstart"][0])
         countdown = days_between(current_date, holiday_date)
         countdown_chip.set_text(f"還有 {countdown} 天" if countdown > 0 else "今天")
         countdown_chip.set_style_bg_color(lv.color_hex(0x4C89B2) if countdown > 0 else lv.color_hex(0xE25E55), 0)
@@ -325,7 +329,10 @@ def fetch_and_display_public_holiday(current_date: int) -> None:
 
         holiday_count = len(future_events)
 
-    lv.screen_load(main_scr)
+    if main_scr and not main_scr.is_visible():
+        lv.scr_load(main_scr)
+
+    lv.refr_now(None)
 
 # ---------- Lifecycle hooks ----------
 async def on_start():
@@ -335,9 +342,9 @@ async def on_start():
     See https://dock.myvobot.com/developer/guides/app-design/ for clife cycle diagram
     """
     global last_api_call_date
-    dprint('on start')
+    dprint("on start")
 
-    display_loading_screen("Loading...")
+    display_info_screen("Loading...")
 
     # Initial fetch and display
     try:
@@ -370,8 +377,18 @@ async def on_stop():
 
     See https://dock.myvobot.com/developer/guides/app-design/ for clife cycle diagram
     """
-    global list_container, last_api_call_date, holiday_count, previous_focus_index
-    dprint('on stop')
+    global main_scr, message_scr, list_container, last_api_call_date, holiday_count, previous_focus_index
+    dprint("on stop")
+
+    if main_scr:
+        main_scr.clean()
+        main_scr.del_async()
+        main_scr = None
+
+    if message_scr:
+        message_scr.clean()
+        message_scr.del_async()
+        message_scr = None
 
     list_container = None
 
