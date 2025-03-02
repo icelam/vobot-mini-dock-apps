@@ -19,6 +19,11 @@ ICON: str = "A:apps/ha-ae-waiting-time/resources/icon.png"
 # ---------- Constants ----------
 SCREEN_WIDTH: int = 320
 SCREEN_HEIGHT: int = 240
+MESSAGE_TYPE: dict[str, int] = {
+    "INFO": 1,
+    "WARN": 2,
+    "ERROR": 3,
+}
 
 # ---------- LVGL Widget ----------
 font_chinese = lv.binfont_create("A:apps/ha-ae-waiting-time/fonts/NotoSansTC_20_bpp2.bin")
@@ -27,6 +32,9 @@ font_chinese = lv.binfont_create("A:apps/ha-ae-waiting-time/fonts/NotoSansTC_20_
 main_scr = None
 list_container = None
 time_label_map = None
+
+# Message screen
+message_scr = None
 
 # ---------- State ----------
 last_api_call_time = 0
@@ -106,52 +114,42 @@ def request(url: str):
     else:
         raise Exception(f"Wifi is not connected")
 
-def display_fullscreen_message(message: str, is_error: bool = False) -> None:
+def make_display_fullscreen_message(level: str = MESSAGE_TYPE["INFO"]) -> function[str]:
     """
-    Display fullscreen screen
+    Creates function that display fullscreen message
 
     Args:
-        message (str): Message to display on screen
-        is_errror (bool): Indicates if the message is an error message that should be displayed in red
+        level (MessageType): Indicates if the message is an error message that should be displayed in red
 
     Returns:
         None. The message is displayed on the screen.
     """
-    error_scr = lv.obj()
-    error_scr.set_style_bg_color(lv.color_hex(0x000000),0)
+    def display_fullscreen_message(message: str) -> None:
+        global message_scr
+        dprint(f"Displaying message: {message}")
 
-    message_label = lv.label(error_scr)
-    message_label.center()
-    message_label.set_long_mode(lv.label.LONG.WRAP)
-    message_label.set_width(300)
-    message_label.set_style_text_color(lv.color_hex(0xFF0000) if is_error else lv.color_hex(0xFFFFFF), 0)
+        if not message_scr:
+            message_scr = lv.obj()
+            message_scr.set_style_bg_color(lv.color_hex(0x000000),0)
+        else:
+            message_scr.clean()
 
-    message_label.set_text(message)
-    lv.screen_load(error_scr)
+        message_label = lv.label(message_scr)
+        message_label.center()
+        message_label.set_long_mode(lv.label.LONG.WRAP)
+        message_label.set_width(300)
+        message_label.set_style_text_color(lv.color_hex(0xFF0000) if level is MESSAGE_TYPE["ERROR"] else lv.color_hex(0xFFFFFF), 0)
+        message_label.set_text(message)
 
-def display_error_screen(message: str) -> None:
-    """
-    Display error screen
+        if message_scr and not message_scr.is_visible():
+            lv.scr_load(message_scr)
 
-    Args:
-        message (str): Error message to display on screen
+        lv.refr_now(None)
 
-    Returns:
-        None. The error screen is displayed on the screen.
-    """
-    display_fullscreen_message(message, True)
+    return display_fullscreen_message
 
-def display_loading_screen(message: str) -> None:
-    """
-    Display loading screen
-
-    Args:
-        message (str): loading message to display on screen
-
-    Returns:
-        None. The error screen is displayed on the screen.
-    """
-    display_fullscreen_message(message, False)
+display_error_screen = make_display_fullscreen_message(MESSAGE_TYPE["ERROR"])
+display_info_screen = make_display_fullscreen_message(MESSAGE_TYPE["INFO"])
 
 def event_handler(event) -> None:
     """
@@ -222,7 +220,7 @@ def fetch_and_display_wait_time() -> None:
         header.add_style(header_style, 0)
         header.update_layout()
 
-        container_height = SCREEN_HEIGHT - header.get_height();
+        container_height = SCREEN_HEIGHT - header.get_height()
 
         # Add list container
         list_container = lv.list(main_scr)
@@ -249,25 +247,28 @@ def fetch_and_display_wait_time() -> None:
             item.set_height(50)
 
             name_label = lv.label(item)
-            name_label.set_text(wait_info['hospName'])
+            name_label.set_text(wait_info["hospName"])
             name_label.set_long_mode(lv.label.LONG.SCROLL_CIRCULAR)
             name_label.set_width(150)
             name_label.align(lv.ALIGN.LEFT_MID, 0, 0)
 
             time_label = lv.label(item)
-            time_label.set_text(wait_info['topWait'])
+            time_label.set_text(wait_info["topWait"])
             time_label.set_long_mode(lv.label.LONG.SCROLL_CIRCULAR)
             time_label.set_width(110)
             time_label.align(lv.ALIGN.RIGHT_MID, 0, 0)
             time_label.set_style_text_align(lv.TEXT_ALIGN.RIGHT, 0)
 
-            time_label_map[wait_info['hospName']] = time_label
+            time_label_map[wait_info["hospName"]] = time_label
             hospital_count = hospital_count + 1
     else:
         for wait_info in response["waitTime"]:
-            time_label_map[wait_info['hospName']].set_text(wait_info['topWait'])
+            time_label_map[wait_info["hospName"]].set_text(wait_info["topWait"])
 
-    lv.screen_load(main_scr)
+    if main_scr and not main_scr.is_visible():
+        lv.scr_load(main_scr)
+
+    lv.refr_now(None)
 
 # ---------- Lifecycle hooks ----------
 async def on_start():
@@ -277,9 +278,9 @@ async def on_start():
     See https://dock.myvobot.com/developer/guides/app-design/ for clife cycle diagram
     """
     global last_api_call_time
-    dprint('on start')
+    dprint("on start")
 
-    display_loading_screen("Loading...")
+    display_info_screen("Loading...")
 
     # Initial fetch and display
     try:
@@ -311,13 +312,18 @@ async def on_stop():
 
     See https://dock.myvobot.com/developer/guides/app-design/ for clife cycle diagram
     """
-    global main_scr, time_label_map, list_container, last_api_call_time, hospital_count, previous_focus_index
-    dprint('on stop')
+    global main_scr, message_scr, time_label_map, list_container, last_api_call_time, hospital_count, previous_focus_index
+    dprint("on stop")
 
     if main_scr:
         main_scr.clean()
         main_scr.del_async()
         main_scr = None
+
+    if message_scr:
+        message_scr.clean()
+        message_scr.del_async()
+        message_scr = None
 
     # Reset states since they seems to be preserved when pressing back (ESC) button
     list_container = None
