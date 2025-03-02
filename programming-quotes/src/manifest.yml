@@ -1,0 +1,9 @@
+application:
+  name: Byte of Wisdom
+  version: 1.0.0
+  description: This is an app that displays ramdom programming quotes from https://programming-quotes-api-pi.vercel.app.
+
+system_requirements:
+  minimum_version: 1.1.0
+  compatible_devices:
+    - MiniDock
